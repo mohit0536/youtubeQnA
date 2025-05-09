@@ -1,17 +1,31 @@
-# Use an official Python runtime as the base image
-FROM python:3.8-slim
+FROM ubuntu:22.04
 
-# Set the working directory inside the container
+# 1. Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl sudo unzip build-essential python3 python3-pip
+
+# 2. Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# 3. Update PATH and use correct shell for ENV
+ENV PATH="/root/.ollama/bin:${PATH}"
+SHELL ["/bin/bash", "-c"]
+
+# 4. Pull the model (this now works!)
+# RUN ollama pull mistral
+
+# 5. Copy app files
 WORKDIR /app
+COPY app.py .
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# 6. Install Python packages
+RUN pip install streamlit transformers==4.51.3 torch==2.7.0 youtube-transcript-api==1.0.3 chromadb==1.0.8 sentence-transformers==4.1.0
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose the port that Streamlit will use
+# 7. Expose ports
 EXPOSE 8501
+EXPOSE 11434
 
-# Run the app
-CMD ["streamlit", "run", "app.py"]
+# 8. Start Ollama + Streamlit
+CMD ["./entrypoint.sh"]

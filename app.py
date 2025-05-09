@@ -1,12 +1,11 @@
 import streamlit as st
-from youtube_transcript_api import YouTubeTranscriptApi
-from sentence_transformers import SentenceTransformer
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+# from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-from transformers import pipeline
+import subprocess
 from urllib.parse import urlparse, parse_qs
 import random
-import torch
 # ----------------- Utility Functions -----------------
 
 def get_video_id(url):
@@ -16,6 +15,16 @@ def get_video_id(url):
     elif query.hostname in ('www.youtube.com', 'youtube.com') and query.path == '/watch':
         return parse_qs(query.query)['v'][0]
     return None
+
+def check_if_english(transcript_list):
+    try:
+        for transcript in transcript_list:
+            if transcript.language_code.startswith("en"):  # or just == 'en'
+                return True
+        return False
+    except (TranscriptsDisabled, NoTranscriptFound):
+        return False
+
 
 def fetch_transcript(video_url):
     try:
@@ -30,20 +39,24 @@ def chunk_text(text, chunk_size=200):
     words = text.split()
     return [' '.join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
 
-# ----------------- Hugging Face Model Setup -----------------
+def ask_ollama(question, context):
+    prompt = f"""You are a helpful AI assistant. Use the video transcript context to answer.
 
-# Initialize Hugging Face QA pipeline
-qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad",
-                       device=0 if torch.cuda.is_available() else -1,
-                        low_cpu_mem_usage=False)
+Context:
+{context}
 
-def ask_hugging_face(question, context):
-    result = qa_pipeline(question=question, context=context)
-    return result['answer']
+Question: {question}
+Answer:"""
+    result = subprocess.run(
+        ["ollama", "run", "mistral"],
+        input=prompt.encode(),
+        capture_output=True
+    )
+    return result.stdout.decode().strip()
 
 # ----------------- Streamlit UI -----------------
 
-st.set_page_config(page_title="🎥 YouTube Q&A with Hugging Face", layout="centered")
+st.set_page_config(page_title="🎥 YouTube Q&A with LLM", layout="centered")
 st.title("🎥 Ask Questions About Any YouTube Video")
 
 video_url = st.text_input("Enter YouTube video URL:")
@@ -59,9 +72,7 @@ if video_url:
         st.info(f"Transcript split into {len(chunks)} chunks.")
 
         # Initialize Chroma
-        embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2",
-    device="cpu",  # Use 'cuda' if you have a GPU available
-    normalize_embeddings=True)
+        embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
         chroma_client = chromadb.Client()
         try:
             chroma_client.reset()
@@ -91,7 +102,7 @@ if video_url:
             with st.spinner("Thinking..."):
                 results = collection.query(query_texts=[question], n_results=3)
                 context = "\n".join(results["documents"][0])
-                answer = ask_hugging_face(question, context)
+                answer = ask_ollama(question, context)
 
             st.markdown("### 💬 Answer:")
             st.write(answer)
