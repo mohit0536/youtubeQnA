@@ -9,6 +9,7 @@ import random
 # ----------------- Utility Functions -----------------
 from transformers import AutoTokenizer, AutoModelForCausalLM,AutoModelForSeq2SeqLM
 import torch
+from chromadb.config import Settings
 
 # Load model and tokenizer globally to avoid reloading on each call
 @st.cache_resource
@@ -101,7 +102,10 @@ if video_url:
 
         # Initialize Chroma
         embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-        chroma_client = chromadb.Client()
+        chroma_client = chromadb.Client(Settings(
+        chroma_db_impl="duckdb",    # Avoids sqlite3
+        persist_directory=".chromadb"  # Optional
+        ))
         try:
             chroma_client.reset()
         except chromadb.errors.AuthorizationError:
