@@ -1,6 +1,7 @@
 import streamlit as st
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 # from sentence_transformers import SentenceTransformer
+from chromadb.config import Settings
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import subprocess
@@ -9,7 +10,6 @@ import random
 # ----------------- Utility Functions -----------------
 from transformers import AutoTokenizer, AutoModelForCausalLM,AutoModelForSeq2SeqLM
 import torch
-from chromadb.config import Settings
 
 # Load model and tokenizer globally to avoid reloading on each call
 @st.cache_resource
