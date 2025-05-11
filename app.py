@@ -1,4 +1,7 @@
 import streamlit as st
+__import__('pysqlite3') 
+import sys 
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 # from sentence_transformers import SentenceTransformer
 from chromadb.config import Settings
