@@ -7,34 +7,6 @@ import subprocess
 from urllib.parse import urlparse, parse_qs
 import random
 # ----------------- Utility Functions -----------------
-from transformers import AutoTokenizer, AutoModelForCausalLM,AutoModelForSeq2SeqLM
-import torch
-
-# Load model and tokenizer globally to avoid reloading on each call
-@st.cache_resource
-def load_model():
-    # model_name = "mistralai/Mistral-7B-Instruct-v0.1"
-    # model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-    model_name = "google/flan-t5-small"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
-    return tokenizer, model
-
-tokenizer, model = load_model()
-
-def ask_model(question, context):
-    prompt = f"""You are a helpful assistant. Use the following context to answer the question:
-
-    Context: {context}
-
-    Question: {question}
-    Answer:"""
-    
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=200)
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    return answer
 
 def get_video_id(url):
     query = urlparse(url)
@@ -84,7 +56,7 @@ Answer:"""
 
 # ----------------- Streamlit UI -----------------
 
-# st.set_page_config(page_title="🎥 YouTube Q&A with LLM", layout="centered")
+st.set_page_config(page_title="🎥 YouTube Q&A with LLM", layout="centered")
 st.title("🎥 Ask Questions About Any YouTube Video")
 
 video_url = st.text_input("Enter YouTube video URL:")
@@ -130,7 +102,7 @@ if video_url:
             with st.spinner("Thinking..."):
                 results = collection.query(query_texts=[question], n_results=3)
                 context = "\n".join(results["documents"][0])
-                answer = ask_model(question, context)
+                answer = ask_ollama(question, context)
 
             st.markdown("### 💬 Answer:")
             st.write(answer)
