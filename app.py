@@ -1,10 +1,13 @@
+import os
+from yt_dlp import YoutubeDL
+from webvtt import WebVTT
 import streamlit as st
-__import__('pysqlite3') 
-import sys 
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# __import__('pysqlite3') 
+# import sys 
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 # from sentence_transformers import SentenceTransformer
-from chromadb.config import Settings
+# from chromadb.config import Settings
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import subprocess
@@ -18,10 +21,10 @@ import torch
 @st.cache_resource
 def load_model():
     # model_name = "mistralai/Mistral-7B-Instruct-v0.1"
-    # model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-    model_name = "google/flan-t5-small"
+    model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    # model_name = "google/flan-t5-small"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
     return tokenizer, model
 
 tokenizer, model = load_model()
@@ -60,13 +63,40 @@ def check_if_english(transcript_list):
 
 def fetch_transcript(video_url):
     try:
+        # Step 1: Set video URL and video ID (for naming)
         video_id = get_video_id(video_url)
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([entry['text'] for entry in transcript])
-    except Exception as e:
-        st.error(f"Failed to fetch transcript: {e}")
-        return None
 
+        # Step 2: yt-dlp options to fetch auto-generated subtitles only
+        ydl_opts = {
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'skip_download': True,
+            'quiet': True,
+            'outtmpl': f'{video_id}.%(ext)s',
+        }
+
+        # Step 3: Download subtitles using yt-dlp
+        with YoutubeDL(ydl_opts) as ydl:
+            print("Downloading subtitles...")
+            ydl.download([video_url])
+
+        # Step 4: Parse the .vtt subtitle file
+        vtt_file = f"{video_id}.en.vtt"
+        if os.path.exists(vtt_file):
+            print("Parsing subtitle file...")
+            transcript = []
+            for caption in WebVTT().read(vtt_file):
+                transcript.append(caption.text.strip())
+            
+            full_transcript = ' '.join(transcript)
+            # print(full_transcript)
+            return full_transcript
+        else:
+            st.error(f"Failed to fetch transcript: {e}")
+            return None
+    except:
+        pass
 def chunk_text(text, chunk_size=200):
     words = text.split()
     return [' '.join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
@@ -92,9 +122,10 @@ Answer:"""
 st.title("🎥 Ask Questions About Any YouTube Video")
 
 video_url = st.text_input("Enter YouTube video URL:")
-
-if video_url:
+variable = 1
+if video_url and variable:
     with st.spinner("Fetching transcript..."):
+        print("Done")
         text = fetch_transcript(video_url)
 
     if text:
@@ -105,10 +136,7 @@ if video_url:
 
         # Initialize Chroma
         embedding_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-        chroma_client = chromadb.Client(Settings(
-        chroma_db_impl="duckdb",    # Avoids sqlite3
-        persist_directory=".chromadb"  # Optional
-        ))
+        chroma_client = chromadb.Client()
         try:
             chroma_client.reset()
         except chromadb.errors.AuthorizationError:
@@ -132,12 +160,13 @@ if video_url:
 
         # Question input
         question = st.text_input("Ask a question based on the video:")
-
         if question:
+            variable = 0
             with st.spinner("Thinking..."):
                 results = collection.query(query_texts=[question], n_results=3)
                 context = "\n".join(results["documents"][0])
                 answer = ask_model(question, context)
 
             st.markdown("### 💬 Answer:")
-            st.write(answer)
+            # print(answer)
+            st.write(answer.split("Answer:", 1)[1].strip())
