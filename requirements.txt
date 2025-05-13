@@ -10,3 +10,5 @@ duckdb
 pysqlite3-binary
 whisper==1.1.10
 yt_dlp
+WebVTT-py
+ffmpeg
