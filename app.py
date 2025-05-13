@@ -21,10 +21,10 @@ import torch
 @st.cache_resource
 def load_model():
     # model_name = "mistralai/Mistral-7B-Instruct-v0.1"
-    model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-    # model_name = "google/flan-t5-small"
+    # model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    model_name = "google/flan-t5-small"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
     return tokenizer, model
 
 tokenizer, model = load_model()
