@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-# __import__('pysqlite3') 
-# import sys 
-# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+__import__('pysqlite3') 
+import sys 
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from yt_dlp import YoutubeDL
 from webvtt import WebVTT
 from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound
