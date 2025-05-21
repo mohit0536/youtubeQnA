@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-__import__('pysqlite3') 
-import sys 
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# __import__('pysqlite3') 
+# import sys 
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from yt_dlp import YoutubeDL
 from webvtt import WebVTT
 from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound
@@ -13,6 +13,7 @@ import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import subprocess
 import random
+import requests
 
 # ----------------- Model Loading -----------------
 @st.cache_resource
@@ -22,25 +23,49 @@ def load_model():
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map="auto")
     return tokenizer, model
 
-tokenizer, model = load_model()
+# tokenizer, model = load_model()
+
+HF_API_TOKEN = os.environ['key']
+HF_MODEL_ENDPOINT = "https://api-inference.huggingface.co/models/google-bert/bert-large-uncased-whole-word-masking-finetuned-squad"
+
+headers = {
+    "Authorization": f"Bearer {HF_API_TOKEN}"
+}
+
+def ask_model(question, context):
+    payload = {
+        "inputs": {
+            "question": question,
+            "context": context
+        }
+    }
+    response = requests.post(HF_MODEL_ENDPOINT, headers=headers, json=payload)
+    
+    if response.status_code == 200:
+        print(response.json(),"response")
+        return response.json()["answer"]
+    else:
+        print(response.text)
+        return f"API request failed with status {response.status_code}: {response.text}"
+
 
 # ----------------- Helper Functions -----------------
-def ask_model(question, context):
-    prompt = f"""You are a helpful assistant. Use the following context to answer the question:
+# def ask_model(question, context):
+#     prompt = f"""You are a helpful assistant. Use the following context to answer the question:
 
-Context: {context}
+# Context: {context}
 
-Question: {question}
-Answer:"""
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=200)
-    decoded_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    if "Answer:" in decoded_output:
-        answer = decoded_output.split("Answer:")[-1].strip()
-    else:
-        answer = decoded_output.strip()
+# Question: {question}
+# Answer:"""
+#     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+#     outputs = model.generate(**inputs, max_new_tokens=200)
+#     decoded_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+#     if "Answer:" in decoded_output:
+#         answer = decoded_output.split("Answer:")[-1].strip()
+#     else:
+#         answer = decoded_output.strip()
 
-    return answer
+#     return answer
 
 def get_video_id(url):
     query = urlparse(url)
@@ -96,7 +121,7 @@ st.session_state.video_input = video_url  # persist the value
 
 if st.button("Fetch Transcript"):
     if video_url:
-        with st.spinner("Enter YouTube video URL..."):
+        with st.spinner("Fetching video details..."):
             transcript = fetch_transcript(video_url)
 
         if transcript:
