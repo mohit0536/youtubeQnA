@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-__import__('pysqlite3') 
-import sys 
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# __import__('pysqlite3') 
+# import sys 
+# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from yt_dlp import YoutubeDL
 from webvtt import WebVTT
 from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound
@@ -14,6 +14,62 @@ from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunct
 import subprocess
 import random
 import requests
+
+# Dialog Box on Load
+st.markdown("""
+    <style>
+    .modal {
+        display: block;
+        position: fixed;
+        z-index: 999;
+        padding-top: 150px;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 50%;
+        text-align: center;
+        border-radius: 10px;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    </style>
+
+    <div id="customModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="document.getElementById('customModal').style.display='none'">&times;</span>
+        <h3>Welcome! 👋</h3>
+        <p>We’ve reached the monthly limit of the free tier for this month. We kindly invite you to watch our demo video. We’ll be back shortly. Thank you for your patience!</p>
+        <a href="https://drive.google.com/file/d/1-875uZg6x6asRabQEuau2_xxaaLLP6j-/view?usp=sharing" target="_blank">Open This Link</a>
+      </div>
+    </div>
+    <script>
+  function hideDiv() {
+    document.getElementById("customModal").style.display = "none";
+  }
+    </script>
+""", unsafe_allow_html=True)
 
 # ----------------- Model Loading -----------------
 @st.cache_resource
